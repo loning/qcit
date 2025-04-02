@@ -69,7 +69,8 @@ def run_sst2_benchmarks(args):
             num_epochs=args.epochs,
             log_dir=os.path.join(output_dir, "logs"),
             model_dir=os.path.join(output_dir, "models"),
-            model_name=model_name
+            model_name=model_name,
+            device=args.device
         )
         
         # 训练模型
@@ -80,7 +81,7 @@ def run_sst2_benchmarks(args):
         test_metrics = evaluate_classifier(
             model=model,
             test_dataloader=test_dataloader,
-            device=trainer.device
+            device=args.device
         )
         
         # 合并指标
@@ -166,7 +167,8 @@ def run_wikitext_benchmarks(args):
                 num_epochs=args.epochs,
                 log_dir=os.path.join(output_dir, "logs"),
                 model_dir=os.path.join(output_dir, "models"),
-                model_name=model_name
+                model_name=model_name,
+                device=args.device
             )
             
             # 训练模型
@@ -177,7 +179,7 @@ def run_wikitext_benchmarks(args):
             test_metrics = evaluate_language_model(
                 model=model,
                 test_dataloader=test_dataloader,
-                device=trainer.device
+                device=args.device
             )
             
             # 合并指标
@@ -224,13 +226,22 @@ def main():
     # 创建输出目录
     os.makedirs(args.output_dir, exist_ok=True)
     
-    # 设置设备
-    if args.gpu and torch.cuda.is_available():
-        device = torch.device("cuda")
-        print(f"使用GPU: {torch.cuda.get_device_name(0)}")
+    # 设置设备 - 增加对MPS (Apple Silicon GPU)的支持
+    if args.gpu:
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+            print(f"使用NVIDIA GPU: {torch.cuda.get_device_name(0)}")
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            device = torch.device("mps")
+            print("使用Apple Silicon GPU (MPS)")
+        else:
+            device = torch.device("cpu")
+            print("没有可用的GPU，使用CPU")
     else:
         device = torch.device("cpu")
         print("使用CPU")
+    
+    args.device = device
     
     # 运行指定任务的基准测试
     if args.tasks.lower() in ["all", "sst2"]:

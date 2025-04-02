@@ -4,6 +4,7 @@ QCIT+基准测试运行脚本
 """
 
 import argparse
+import torch
 from benchmarks.run_benchmarks import run_sst2_benchmarks, run_wikitext_benchmarks
 
 def main():
@@ -16,6 +17,16 @@ def main():
     
     args = parser.parse_args()
     
+    # 检测可用的GPU设备
+    gpu_info = "不使用"
+    if args.gpu:
+        if torch.cuda.is_available():
+            gpu_info = f"NVIDIA GPU ({torch.cuda.get_device_name(0)})"
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            gpu_info = "Apple Silicon GPU (MPS)"
+        else:
+            gpu_info = "无可用GPU，将使用CPU"
+    
     print("="*70)
     print("  QCIT+模型基准测试 - 与BERT、Standard和GPT-2的性能比较  ")
     print("="*70)
@@ -23,7 +34,7 @@ def main():
     print(f"• 批次大小: {args.batch_size}")
     print(f"• 训练轮数: {args.epochs}")
     print(f"• 测试任务: {args.tasks}")
-    print(f"• 使用GPU: {args.gpu}")
+    print(f"• GPU加速: {gpu_info}")
     print("-"*70)
     
     # 运行指定任务的基准测试

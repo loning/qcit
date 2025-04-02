@@ -77,6 +77,20 @@ python run_benchmarks.py --tasks wikitext --epochs 3
 python run_benchmarks.py --gpu
 ```
 
+### GPU加速支持
+
+基准测试框架支持多种GPU后端：
+
+- **NVIDIA GPU**：通过CUDA后端自动检测并使用
+- **Apple Silicon GPU**：适用于M1/M2/M3芯片的Mac设备，通过MPS后端自动检测并使用
+- **CPU后备**：当没有可用GPU时，自动使用CPU进行计算
+
+要在Apple Silicon Mac上使用GPU加速，只需添加`--gpu`参数，系统会自动检测并使用MPS后端：
+
+```bash
+python run_benchmarks.py --gpu
+```
+
 ### 基准测试输出
 
 测试框架将生成以下输出：
