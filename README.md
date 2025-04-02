@@ -17,7 +17,15 @@ QCIT/
 │   ├── __init__.py           # 包初始化文件
 │   ├── models.py             # 核心模型实现
 │   └── utils.py              # 工具函数（控制张量生成、轨迹可视化等）
-├── example.py                # 使用示例
+├── benchmarks/               # 基准测试框架
+│   ├── __init__.py           # 测试包初始化文件
+│   ├── data.py               # 数据加载和处理
+│   ├── models.py             # 模型实现和管理
+│   ├── training.py           # 训练和评估
+│   ├── report.py             # 报告生成
+│   └── run_benchmarks.py     # 基准测试运行
+├── run_benchmarks.py         # 基准测试主脚本
+├── example.py                # 基本使用示例
 └── requirements.txt          # 项目依赖
 ```
 
@@ -48,6 +56,37 @@ python example.py
 3. 应用不同风格的控制张量生成演化轨迹
 4. 可视化不同轨迹
 5. 输出模型复杂度分析
+
+## 📊 基准测试
+
+QCIT+模型基准测试框架提供了与BERT、Standard和GPT-2等模型的性能比较。
+
+### 运行基准测试
+
+```bash
+# 运行所有基准测试
+python run_benchmarks.py --epochs 3 --batch_size 16
+
+# 仅运行情感分析任务（SST-2数据集）
+python run_benchmarks.py --tasks sst2 --epochs 3
+
+# 仅运行语言建模任务（WikiText数据集）
+python run_benchmarks.py --tasks wikitext --epochs 3
+
+# 使用GPU加速（如可用）
+python run_benchmarks.py --gpu
+```
+
+### 基准测试输出
+
+测试框架将生成以下输出：
+
+1. **指标文件**：JSON格式的性能指标
+2. **比较表格**：CSV格式的模型比较数据
+3. **可视化图表**：训练曲线和性能对比图
+4. **PDF报告**：完整的基准测试分析报告
+
+所有输出文件默认保存在 `benchmark_results` 目录中。
 
 ## 📐 核心模块
 
