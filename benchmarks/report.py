@@ -10,6 +10,60 @@ import seaborn as sns
 from tabulate import tabulate
 from fpdf import FPDF
 import datetime
+import platform
+import matplotlib as mpl
+
+# 设置matplotlib中文字体支持
+def setup_chinese_font():
+    """设置matplotlib中文字体支持"""
+    system = platform.system()
+    
+    if system == "Windows":
+        # Windows系统字体
+        font_paths = [
+            "C:\\Windows\\Fonts\\simhei.ttf",  # 黑体
+            "C:\\Windows\\Fonts\\msyh.ttc",    # 微软雅黑
+            "C:\\Windows\\Fonts\\simsun.ttc",  # 宋体
+            "C:\\Windows\\Fonts\\simkai.ttf"   # 楷体
+        ]
+    elif system == "Darwin":  # macOS
+        font_paths = [
+            "/System/Library/Fonts/STHeiti Medium.ttc",  # 黑体
+            "/System/Library/Fonts/PingFang.ttc",        # 苹方
+            "/Library/Fonts/Arial Unicode.ttf"           # Arial Unicode
+        ]
+    else:  # Linux或其他系统
+        font_paths = [
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+            "/usr/share/fonts/truetype/arphic/uming.ttc",
+            "/usr/share/fonts/truetype/arphic/ukai.ttc"
+        ]
+    
+    # 尝试设置字体
+    font_loaded = False
+    for font_path in font_paths:
+        if os.path.exists(font_path):
+            try:
+                # 注册字体
+                from matplotlib.font_manager import FontProperties
+                font_prop = FontProperties(fname=font_path)
+                plt.rcParams['font.family'] = font_prop.get_name()
+                font_loaded = True
+                print(f"成功加载matplotlib中文字体: {font_path}")
+                break
+            except Exception as e:
+                print(f"尝试加载matplotlib字体 {font_path} 失败: {e}")
+    
+    if not font_loaded:
+        print("警告: 未能加载任何matplotlib中文字体，图表中的中文可能无法正确显示")
+        # 使用默认字体
+        plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
+    
+    # 解决负号显示问题
+    plt.rcParams['axes.unicode_minus'] = False
+
+# 初始化中文字体支持
+setup_chinese_font()
 
 def save_metrics_to_json(metrics, output_path="benchmark_results.json"):
     """
@@ -218,16 +272,59 @@ class PDFReport(FPDF):
         super().__init__(*args, **kwargs)
         self.title = title
         self.set_auto_page_break(auto=True, margin=15)
+        
+        # 检测操作系统并设置相应的字体路径
+        import platform
+        import os
+        
+        system = platform.system()
+        if system == "Windows":
+            # Windows系统字体路径
+            font_paths = [
+                "C:\\Windows\\Fonts\\simhei.ttf",  # 黑体
+                "C:\\Windows\\Fonts\\msyh.ttc",    # 微软雅黑
+                "C:\\Windows\\Fonts\\simsun.ttc",  # 宋体
+                "C:\\Windows\\Fonts\\simkai.ttf"   # 楷体
+            ]
+        elif system == "Darwin":  # macOS
+            font_paths = [
+                "/System/Library/Fonts/STHeiti Medium.ttc",  # 黑体
+                "/System/Library/Fonts/PingFang.ttc",        # 苹方
+                "/Library/Fonts/Arial Unicode.ttf"           # Arial Unicode
+            ]
+        else:  # Linux或其他系统
+            font_paths = [
+                "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+                "/usr/share/fonts/truetype/arphic/uming.ttc",
+                "/usr/share/fonts/truetype/arphic/ukai.ttc"
+            ]
+        
+        # 尝试加载字体
+        font_loaded = False
+        for font_path in font_paths:
+            if os.path.exists(font_path):
+                try:
+                    self.add_font('chinese', '', font_path, uni=True)
+                    font_loaded = True
+                    print(f"成功加载中文字体: {font_path}")
+                    break
+                except Exception as e:
+                    print(f"尝试加载字体 {font_path} 失败: {e}")
+        
+        if not font_loaded:
+            print("警告: 未能加载任何中文字体，PDF报告中的中文可能无法正确显示")
+            # 使用默认字体
+            self.add_font('chinese', '', '', uni=True)
+        
         self.add_page()
-        self.add_font('simhei', '', '/System/Library/Fonts/STHeiti Medium.ttc', uni=True)
         
     def header(self):
         # 设置字体和大小
-        self.set_font('simhei', '', 15)
+        self.set_font('chinese', '', 15)
         # 标题
         self.cell(0, 10, self.title, 0, 1, 'C')
         # 设置生成日期
-        self.set_font('simhei', '', 10)
+        self.set_font('chinese', '', 10)
         date_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
         self.cell(0, 5, f"生成日期：{date_str}", 0, 1, 'R')
         # 水平线
@@ -239,17 +336,17 @@ class PDFReport(FPDF):
         # 页脚定位
         self.set_y(-15)
         # 设置字体
-        self.set_font('simhei', '', 8)
+        self.set_font('chinese', '', 8)
         # 页码
         self.cell(0, 10, f'第 {self.page_no()} 页', 0, 0, 'C')
     
     def chapter_title(self, title):
-        self.set_font('simhei', '', 14)
+        self.set_font('chinese', '', 14)
         self.cell(0, 10, title, 0, 1, 'L')
         self.ln(5)
     
     def chapter_body(self, text):
-        self.set_font('simhei', '', 12)
+        self.set_font('chinese', '', 12)
         self.multi_cell(0, 6, text)
         self.ln()
     
@@ -261,7 +358,7 @@ class PDFReport(FPDF):
         table_str = tabulate(table_data, headers="firstrow", tablefmt="grid")
         
         # 使用monospaced字体展示表格
-        self.set_font('simhei', '', 10)
+        self.set_font('chinese', '', 10)
         self.multi_cell(0, 5, table_str)
         self.ln(10)
     

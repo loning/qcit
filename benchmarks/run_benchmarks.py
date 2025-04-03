@@ -61,21 +61,36 @@ def run_sst2_benchmarks(args):
         num_params = count_parameters(model)
         print(f"模型参数量: {num_params:,}")
         
-        # 设置训练器
-        trainer = Trainer(
-            model=model,
-            train_dataloader=train_dataloader,
-            val_dataloader=val_dataloader,
-            num_epochs=args.epochs,
-            log_dir=os.path.join(output_dir, "logs"),
-            model_dir=os.path.join(output_dir, "models"),
-            model_name=model_name,
-            device=args.device
-        )
-        
-        # 训练模型
-        train_metrics = trainer.train()
-        trainer.close()
+        # 检查是否有预训练模型
+        model_path = os.path.join(output_dir, "models", f"{model_name}_best.pt")
+        if os.path.exists(model_path) and hasattr(args, 'skip_training') and args.skip_training:
+            print(f"找到预训练模型: {model_path}")
+            print("跳过训练过程，直接加载模型...")
+            model.load_state_dict(torch.load(model_path, map_location=args.device))
+            train_metrics = {
+                "train_loss": [0.0],  # 占位符
+                "val_loss": [0.0],    # 占位符
+                "train_accuracy": [0.0],  # 占位符
+                "val_accuracy": [0.0],    # 占位符
+                "training_time": 0.0,     # 占位符
+                "inference_time": 0.0     # 占位符
+            }
+        else:
+            # 设置训练器
+            trainer = Trainer(
+                model=model,
+                train_dataloader=train_dataloader,
+                val_dataloader=val_dataloader,
+                num_epochs=args.epochs,
+                log_dir=os.path.join(output_dir, "logs"),
+                model_dir=os.path.join(output_dir, "models"),
+                model_name=model_name,
+                device=args.device
+            )
+            
+            # 训练模型
+            train_metrics = trainer.train()
+            trainer.close()
         
         # 在测试集上评估
         test_metrics = evaluate_classifier(
@@ -101,15 +116,17 @@ def run_sst2_benchmarks(args):
     generate_comparison_table(all_metrics, task_type="classification", output_path=comparison_table_path)
     
     # 生成PDF报告
-    pdf_path = os.path.join(output_dir, "sst2_benchmark_report.pdf")
-    generate_pdf_report(
-        metrics=all_metrics,
-        task_type="classification",
-        output_path=pdf_path,
-        dataset_name="SST-2"
-    )
+    try:
+        generate_pdf_report(
+            metrics=all_metrics,
+            task_type="classification",
+            output_path=os.path.join(output_dir, "benchmark_report.pdf"),
+            dataset_name="SST-2"
+        )
+    except Exception as e:
+        print(f"生成PDF报告时出错: {e}")
+        print("继续执行其他任务...")
     
-    print(f"\nSST-2基准测试完成。报告已保存到: {pdf_path}")
     return all_metrics
 
 def run_wikitext_benchmarks(args):
@@ -129,15 +146,16 @@ def run_wikitext_benchmarks(args):
     
     # 加载数据
     print("加载WikiText数据...")
-    train_dataloader = get_dataloader("wikitext", "train", batch_size=args.batch_size, tokenizer_type="gpt2")
-    val_dataloader = get_dataloader("wikitext", "validation", batch_size=args.batch_size, tokenizer_type="gpt2")
-    test_dataloader = get_dataloader("wikitext", "test", batch_size=args.batch_size, tokenizer_type="gpt2")
+    train_dataloader = get_dataloader("wikitext", "train", batch_size=args.batch_size)
+    val_dataloader = get_dataloader("wikitext", "validation", batch_size=args.batch_size)
+    test_dataloader = get_dataloader("wikitext", "test", batch_size=args.batch_size)
     
     # 设置要测试的模型
     model_configs = [
-        ("gpt2", {}),  # GPT-2是主要的语言模型
-        ("bert", {"is_decoder": True}),  # 将BERT作为解码器使用
-        ("qcit", {})  # QCIT模型
+        ("bert", {}),
+        ("standard", {}),
+        ("gpt2", {}),
+        ("qcit", {})
     ]
     
     # 存储所有模型的指标
@@ -145,20 +163,30 @@ def run_wikitext_benchmarks(args):
     
     # 循环测试每个模型
     for model_name, model_kwargs in model_configs:
-        if model_name == "standard":
-            print(f"\n跳过模型: {model_name} - 不支持语言建模任务")
-            continue
-            
         print(f"\n测试模型: {model_name}")
         
-        try:
-            # 初始化模型
-            model = get_model(model_name, task="language_modeling", **model_kwargs)
-            
-            # 计算参数量
-            num_params = count_parameters(model)
-            print(f"模型参数量: {num_params:,}")
-            
+        # 初始化模型
+        model = get_model(model_name, task="language_modeling", **model_kwargs)
+        
+        # 计算参数量
+        num_params = count_parameters(model)
+        print(f"模型参数量: {num_params:,}")
+        
+        # 检查是否有预训练模型
+        model_path = os.path.join(output_dir, "models", f"{model_name}_best.pt")
+        if os.path.exists(model_path) and hasattr(args, 'skip_training') and args.skip_training:
+            print(f"找到预训练模型: {model_path}")
+            print("跳过训练过程，直接加载模型...")
+            model.load_state_dict(torch.load(model_path, map_location=args.device))
+            train_metrics = {
+                "train_loss": [0.0],  # 占位符
+                "val_loss": [0.0],    # 占位符
+                "train_perplexity": [0.0],  # 占位符
+                "val_perplexity": [0.0],    # 占位符
+                "training_time": 0.0,     # 占位符
+                "inference_time": 0.0     # 占位符
+            }
+        else:
             # 设置训练器
             trainer = LanguageModelTrainer(
                 model=model,
@@ -174,24 +202,21 @@ def run_wikitext_benchmarks(args):
             # 训练模型
             train_metrics = trainer.train()
             trainer.close()
-            
-            # 在测试集上评估
-            test_metrics = evaluate_language_model(
-                model=model,
-                test_dataloader=test_dataloader,
-                device=args.device
-            )
-            
-            # 合并指标
-            metrics = {**train_metrics, **test_metrics, "parameters": num_params}
-            all_metrics[model_name] = metrics
-            
-            # 保存单个模型的指标
-            model_output_path = os.path.join(output_dir, f"{model_name}_metrics.json")
-            save_metrics_to_json(metrics, model_output_path)
         
-        except NotImplementedError as e:
-            print(f"跳过模型: {model_name} - {str(e)}")
+        # 在测试集上评估
+        test_metrics = evaluate_language_model(
+            model=model,
+            test_dataloader=test_dataloader,
+            device=args.device
+        )
+        
+        # 合并指标
+        metrics = {**train_metrics, **test_metrics, "parameters": num_params}
+        all_metrics[model_name] = metrics
+        
+        # 保存单个模型的指标
+        model_output_path = os.path.join(output_dir, f"{model_name}_metrics.json")
+        save_metrics_to_json(metrics, model_output_path)
     
     # 保存所有模型的综合指标
     combined_output_path = os.path.join(output_dir, "all_metrics.json")
@@ -202,15 +227,17 @@ def run_wikitext_benchmarks(args):
     generate_comparison_table(all_metrics, task_type="language_modeling", output_path=comparison_table_path)
     
     # 生成PDF报告
-    pdf_path = os.path.join(output_dir, "wikitext_benchmark_report.pdf")
-    generate_pdf_report(
-        metrics=all_metrics,
-        task_type="language_modeling",
-        output_path=pdf_path,
-        dataset_name="WikiText"
-    )
+    try:
+        generate_pdf_report(
+            metrics=all_metrics,
+            task_type="language_modeling",
+            output_path=os.path.join(output_dir, "benchmark_report.pdf"),
+            dataset_name="WikiText"
+        )
+    except Exception as e:
+        print(f"生成PDF报告时出错: {e}")
+        print("继续执行其他任务...")
     
-    print(f"\nWikiText基准测试完成。报告已保存到: {pdf_path}")
     return all_metrics
 
 def main():
